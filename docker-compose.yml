@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      target: development
+      args:
+        VITE_PRODUCT_SERVICE_URL: http://product-service:3000
+        VITE_AUTH_SERVICE_URL: http://auth-service:3001
+        VITE_ORDER_SERVICE_URL: http://order-service:3002
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=development
+      - VITE_PRODUCT_SERVICE_URL=http://product-service:3000
+      - VITE_AUTH_SERVICE_URL=http://auth-service:3001
+      - VITE_ORDER_SERVICE_URL=http://order-service:3002
+    depends_on:
+      - product-service
+      - auth-service
+      - order-service
+
+  order-service:
+    build: ./services/order-service
+    ports:
+      - "3002:3002"
+    environment:
+      - NODE_ENV=development
+      - MONGODB_URI=mongodb://mongodb:27017/orders
+      - JWT_SECRET=efrei_super_pass
+      - VITE_PRODUCT_SERVICE_URL=http://product-service:3000
+    depends_on:
+      - mongodb
+      - product-service
+
+  product-service:
+    build: ./services/product-service
+    container_name: product-service
+    ports:
+      - "3000:3000"
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/ecommerce
+      - NODE_ENV=development
+      - JWT_SECRET=efrei_super_pass
+    depends_on:
+      - mongodb
+  auth-service:
+    build: ./services/auth-service
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - MONGODB_URI=mongodb://mongodb:27017/auth
+      - JWT_SECRET=efrei_super_pass
+    depends_on:
+      - mongodb
+
+  mongodb:
+    image: mongo:4.4
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      - MONGO_INITDB_DATABASE=ecommerce
+
+volumes:
+  mongodb_data:

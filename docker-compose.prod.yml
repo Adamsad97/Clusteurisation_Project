@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+  frontend:
+    image: ${CI_REGISTRY_IMAGE}/frontend:${IMAGE_TAG}
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 10s
+      placement:
+        constraints:
+          - node.role == worker
+    environment:
+      NODE_ENV: production
+      VITE_PRODUCT_SERVICE_URL: http://product-service:3000
+      VITE_AUTH_SERVICE_URL: http://auth-service:3001
+      VITE_ORDER_SERVICE_URL: http://order-service:3002
+    ports:
+      - "8080:8080"
+    networks:
+      - ecommerce_net
+
+  auth-service:
+    image: ${CI_REGISTRY_IMAGE}/auth_service:${IMAGE_TAG}
+    deploy:
+      replicas: 2
+      placement:
+        constraints:
+          - node.role == worker
+    environment:
+      NODE_ENV: production
+      MONGODB_URI: mongodb://mongodb:27017/auth
+      JWT_SECRET: ${JWT_SECRET}
+    networks:
+      - ecommerce_net
+
+  product-service:
+    image: ${CI_REGISTRY_IMAGE}/product_service:${IMAGE_TAG}
+    deploy:
+      replicas: 2
+      placement:
+        constraints:
+          - node.role == worker
+    environment:
+      NODE_ENV: production
+      MONGODB_URI: mongodb://mongodb:27017/ecommerce
+      JWT_SECRET: ${JWT_SECRET}
+    networks:
+      - ecommerce_net
+
+  order-service:
+    image: ${CI_REGISTRY_IMAGE}/order_service:${IMAGE_TAG}
+    deploy:
+      replicas: 2
+      placement:
+        constraints:
+          - node.role == worker
+    environment:
+      NODE_ENV: production
+      MONGODB_URI: mongodb://mongodb:27017/orders
+      JWT_SECRET: ${JWT_SECRET}
+      VITE_PRODUCT_SERVICE_URL: http://product-service:3000
+    networks:
+      - ecommerce_net
+
+  mongodb:
+    image: mongo:4.4
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: ecommerce
+    networks:
+      - ecommerce_net
+
+volumes:
+  mongodb_data:
+    driver: local
+
+networks:
+  ecommerce_net:
+    driver: overlay

@@ -1,0 +1,60 @@
+name: CI/CD - Test, Build, Deploy
+
+on:
+  push:
+    branches: [main, develop]
+
+jobs:
+  test:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install & test auth-service
+        working-directory: services/auth-service
+        run: |
+          npm install
+          npm test
+
+      - name: Install & test product-service
+        working-directory: services/product-service
+        run: |
+          npm install
+          npm test
+
+      - name: Install & test order-service
+        working-directory: services/order-service
+        run: |
+          npm install
+          npm test
+
+  deploy:
+    needs: test
+    runs-on: self-hosted
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build images
+        run: |
+          docker build -t 192.168.102.114:5000/frontend:latest --target production ./frontend
+          docker build -t 192.168.102.114:5000/auth-service:latest ./services/auth-service
+          docker build -t 192.168.102.114:5000/product-service:latest ./services/product-service
+          docker build -t 192.168.102.114:5000/order-service:latest ./services/order-service
+
+      - name: Push images to local registry
+        run: |
+          docker push 192.168.102.114:5000/frontend:latest
+          docker push 192.168.102.114:5000/auth-service:latest
+          docker push 192.168.102.114:5000/product-service:latest
+          docker push 192.168.102.114:5000/order-service:latest
+
+      - name: Deploy stack
+        run: |
+          docker stack deploy -c docker-compose.prod.yml ecommerce

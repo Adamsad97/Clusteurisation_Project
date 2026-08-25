@@ -1,0 +1,62 @@
+version: '3.8'
+services:
+  mongodb:
+    image: mongo:4.4
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+  auth-service:
+    build: ./services/auth-service
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - MONGODB_URI=mongodb://mongodb:27017/auth
+      - JWT_SECRET=project_cluster_esgi_iwj
+    depends_on:
+      - mongodb
+
+  product-service:
+    build: ./services/product-service
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - MONGODB_URI=mongodb://mongodb:27017/products
+      - JWT_SECRET=project_cluster_esgi_iwj
+    depends_on:
+      - mongodb
+
+  order-service:
+    build: ./services/order-service
+    ports:
+      - "3002:3002"
+    environment:
+      - NODE_ENV=development
+      - MONGODB_URI=mongodb://mongodb:27017/orders
+      - JWT_SECRET=project_cluster_esgi_iwj
+      - PRODUCT_SERVICE_URL=http://product-service:3000
+    depends_on:
+      - mongodb
+      - product-service
+
+  frontend:
+    build:
+      context: ./frontend
+      target: development
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=development
+      - PRODUCT_SERVICE_URL=http://product-service:3000
+      - AUTH_SERVICE_URL=http://auth-service:3001
+      - ORDER_SERVICE_URL=http://order-service:3002
+    depends_on:
+      - product-service
+      - auth-service
+      - order-service
+
+volumes:
+  mongodb_data:

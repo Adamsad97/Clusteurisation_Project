@@ -1,26 +1,5 @@
 version: '3.8'
 services:
-  traefik:
-    image: traefik:v2.11
-    command:
-      - "--configFile=/etc/traefik/traefik.yml"
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /root/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
-      - /root/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
-    secrets:
-      - tls_cert
-      - tls_key
-    deploy:
-      placement:
-        constraints:
-          - node.role == manager
-    networks:
-      - ecommerce_net
-
   mongodb:
     image: mongo:4.4
     volumes:
@@ -107,8 +86,4 @@ networks:
 
 secrets:
   jwt_secret:
-    external: true
-  tls_cert:
-    external: true
-  tls_key:
     external: true

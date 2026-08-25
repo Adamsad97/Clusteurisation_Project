@@ -1,21 +1,21 @@
-# Étape 1 : Étape de base commune
-FROM node:18.19.0-alpine AS base
+FROM node:24-alpine AS base
 WORKDIR /app
 COPY package*.json ./
-# Installer toutes les dépendances (y compris les devDependencies)
+
+# Installation de toutes les dépendances
 RUN npm install
 COPY . .
 
-###############################################################
-# Étape 2 : Build pour la production
+# Build Production
 FROM base AS build-production
 ENV NODE_ENV=production
-# Ajouter les arguments de build pour les variables VITE_*
+
+# Argument
 ARG VITE_AUTH_SERVICE_URL
 ARG VITE_PRODUCT_SERVICE_URL
 ARG VITE_ORDER_SERVICE_URL
 
-# Définir les variables d'environnement
+# Les variables d'environnement
 ENV NODE_ENV=production
 ENV VITE_AUTH_SERVICE_URL=${VITE_AUTH_SERVICE_URL}
 ENV VITE_PRODUCT_SERVICE_URL=${VITE_PRODUCT_SERVICE_URL}
@@ -49,3 +49,4 @@ FROM base AS development
 ENV NODE_ENV=development
 EXPOSE 8080
 CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+

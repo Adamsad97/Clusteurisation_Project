@@ -1,20 +1,20 @@
 import mongoose from 'mongoose';
+import { runtimeConfig } from './runtime.js';
 
 export const connectDB = async () => {
   try {
-    // Ne pas se connecter si déjà connecté
-    if (mongoose.connection.readyState !== 0) {
+    // Ne pas se connecter si déjà connecté ou en mode test
+    if (mongoose.connection.readyState !== 0 || runtimeConfig.isTest) {
       console.log('MongoDB already connected');
       return;
     }
 
-    const conn = await mongoose.connect(process.env.MONGODB_URI);
+    const conn = await mongoose.connect(runtimeConfig.mongodbUri);
     console.log(`MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
     console.error(`Error: ${error.message}`);
-    // Ne pas quitter le processus en mode test
-    if (process.env.NODE_ENV !== 'test') {
-      process.exit(1);
+    if (!runtimeConfig.isTest) {
+      setTimeout(connectDB, 5000);
     }
   }
 };

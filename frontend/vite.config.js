@@ -4,6 +4,10 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
+const productTarget = process.env.PRODUCT_SERVICE_URL || 'http://localhost:3000'
+const authTarget = process.env.AUTH_SERVICE_URL || 'http://localhost:3001'
+const orderTarget = process.env.ORDER_SERVICE_URL || 'http://localhost:3002'
+
 export default defineConfig({
   plugins: [vue()],
   server: {
@@ -12,17 +16,17 @@ export default defineConfig({
     cors: true,
     proxy: {
       '/api/products': {
-        target: process.env.VITE_PRODUCT_SERVICE_URL || 'http://product-service:3000',
+        target: productTarget,
         changeOrigin: true,
         
       },
       '/api/cart': {
-        target: process.env.VITE_PRODUCT_SERVICE_URL || 'http://product-service:3000',
+        target: productTarget,
         changeOrigin: true,
         
       },
       '/api/auth': {
-        target: process.env.VITE_AUTH_SERVICE_URL || 'http://auth-service:3001',
+        target: authTarget,
         changeOrigin: true,
         timeout: 60000, // 60 secondes
         configure: (proxy) => {
@@ -38,7 +42,7 @@ export default defineConfig({
         },
       },
       '/api/orders': {
-        target: process.env.VITE_ORDER_SERVICE_URL || 'http://order-service:3002',
+        target: orderTarget,
         changeOrigin: true,
         
       }

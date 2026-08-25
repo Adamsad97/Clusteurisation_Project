@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import { runtimeConfig } from '../config/runtime.js';
 
 export const auth = (req, res, next) => {
   try {
@@ -12,11 +13,13 @@ export const auth = (req, res, next) => {
       return res.status(401).json({ message: 'Token malformé' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'efrei_super_pass');
+    const decoded = jwt.verify(token, runtimeConfig.jwtSecret);
     req.user = decoded;
     next();
   } catch (error) {
-    console.error('Auth middleware error:', error);
+    if (!runtimeConfig.isTest) {
+      console.error('Auth middleware error:', error);
+    }
     return res.status(401).json({ message: 'Token invalide' });
   }
 };

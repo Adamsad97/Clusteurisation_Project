@@ -1,5 +1,7 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/user.js';
+import { runtimeConfig } from '../config/runtime.js';
+
 export const register = async (req, res) => {
     try {
       const { email, password } = req.body;
@@ -41,7 +43,7 @@ export const register = async (req, res) => {
   
       const token = jwt.sign(
         { userId: user._id, email: user.email },
-        process.env.JWT_SECRET || 'test_secret',
+        runtimeConfig.jwtSecret,
         { expiresIn: '24h' }
       );
   
@@ -86,7 +88,7 @@ export const login = async (req, res) => {
     // Génération du token
     const token = jwt.sign(
       { userId: user._id, email: user.email },
-      process.env.JWT_SECRET || 'test_secret',
+      runtimeConfig.jwtSecret,
       { expiresIn: '24h' }
     );
 

@@ -1,28 +1,39 @@
 version: '3.8'
-
 services:
-  frontend:
-    image: ${CI_REGISTRY_IMAGE}/frontend:${IMAGE_TAG}
+  traefik:
+    image: traefik:v2.11
+    command:
+      - "--configFile=/etc/traefik/traefik.yml"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /root/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - /root/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+    secrets:
+      - tls_cert
+      - tls_key
     deploy:
-      replicas: 2
-      update_config:
-        parallelism: 1
-        delay: 10s
       placement:
         constraints:
-          - node.role == worker
-    environment:
-      NODE_ENV: production
-      VITE_PRODUCT_SERVICE_URL: http://product-service:3000
-      VITE_AUTH_SERVICE_URL: http://auth-service:3001
-      VITE_ORDER_SERVICE_URL: http://order-service:3002
-    ports:
-      - "8080:8080"
+          - node.role == manager
+    networks:
+      - ecommerce_net
+
+  mongodb:
+    image: mongo:4.4
+    volumes:
+      - mongodb_data:/data/db
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
     networks:
       - ecommerce_net
 
   auth-service:
-    image: ${CI_REGISTRY_IMAGE}/auth_service:${IMAGE_TAG}
+    image: 192.168.102.114:5000/auth-service:latest
     deploy:
       replicas: 2
       placement:
@@ -31,12 +42,13 @@ services:
     environment:
       NODE_ENV: production
       MONGODB_URI: mongodb://mongodb:27017/auth
-      JWT_SECRET: ${JWT_SECRET}
+    secrets:
+      - jwt_secret
     networks:
       - ecommerce_net
 
   product-service:
-    image: ${CI_REGISTRY_IMAGE}/product_service:${IMAGE_TAG}
+    image: 192.168.102.114:5000/product-service:latest
     deploy:
       replicas: 2
       placement:
@@ -44,13 +56,12 @@ services:
           - node.role == worker
     environment:
       NODE_ENV: production
-      MONGODB_URI: mongodb://mongodb:27017/ecommerce
-      JWT_SECRET: ${JWT_SECRET}
+      MONGODB_URI: mongodb://mongodb:27017/products
     networks:
       - ecommerce_net
 
   order-service:
-    image: ${CI_REGISTRY_IMAGE}/order_service:${IMAGE_TAG}
+    image: 192.168.102.114:5000/order-service:latest
     deploy:
       replicas: 2
       placement:
@@ -59,21 +70,30 @@ services:
     environment:
       NODE_ENV: production
       MONGODB_URI: mongodb://mongodb:27017/orders
-      JWT_SECRET: ${JWT_SECRET}
-      VITE_PRODUCT_SERVICE_URL: http://product-service:3000
+      PRODUCT_SERVICE_URL: http://product-service:3000
+    secrets:
+      - jwt_secret
     networks:
       - ecommerce_net
 
-  mongodb:
-    image: mongo:4.4
+  frontend:
+    image: 192.168.102.114:5000/frontend:latest
     deploy:
+      replicas: 3
       placement:
         constraints:
-          - node.role == manager
-    volumes:
-      - mongodb_data:/data/db
+          - node.role == worker
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.frontend.rule=Host(`app.local`)"
+        - "traefik.http.routers.frontend.entrypoints=websecure"
+        - "traefik.http.routers.frontend.tls=true"
+        - "traefik.http.services.frontend.loadbalancer.server.port=8080"
     environment:
-      MONGO_INITDB_DATABASE: ecommerce
+      NODE_ENV: production
+      AUTH_SERVICE_URL: http://auth-service:3001
+      PRODUCT_SERVICE_URL: http://product-service:3000
+      ORDER_SERVICE_URL: http://order-service:3002
     networks:
       - ecommerce_net
 
@@ -84,3 +104,11 @@ volumes:
 networks:
   ecommerce_net:
     driver: overlay
+
+secrets:
+  jwt_secret:
+    external: true
+  tls_cert:
+    external: true
+  tls_key:
+    external: true

@@ -1,6 +1,7 @@
 // Fichier: src/controllers/orderController.js
 import Order from '../models/order.js';
 import axios from 'axios';
+import { runtimeConfig } from '../config/runtime.js';
 
 // Créer une nouvelle commande
 export const createOrder = async (req, res) => {
@@ -14,7 +15,7 @@ export const createOrder = async (req, res) => {
     }
 
     // Vérifier la disponibilité des produits
-    const productService = process.env.VITE_PRODUCT_SERVICE_URL || 'http://product-service:3000';
+    const productService = runtimeConfig.productServiceUrl;
     let totalAmount = 0;
     const orderProducts = [];
 
@@ -150,7 +151,7 @@ export const cancelOrder = async (req, res) => {
     order.status = 'cancelled';
     await order.save();
 
-    const productService = process.env.VITE_PRODUCT_SERVICE_URL || 'http://product-service:3000';
+    const productService = runtimeConfig.productServiceUrl;
 
     // Utiliser Promise.all pour gérer toutes les mises à jour en parallèle
     await Promise.all(order.products.map(async (item) => {

@@ -1,5 +1,9 @@
-# Vue 3 + Vite
+# Frontend
 
-This template should help get you started developing with Vue 3 in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+Frontend Vue/Vite de l'application e-commerce.
 
-Learn more about IDE Support for Vue in the [Vue Docs Scaling up Guide](https://vuejs.org/guide/scaling-up/tooling.html#ide-support).
+- Dev : `npm run dev`
+- Build : `npm run build`
+- Runtime Docker prod : `node server.cjs`
+
+En production, `server.cjs` sert `dist/` et proxy les appels `/api/*` vers les services internes Docker avec `AUTH_SERVICE_URL`, `PRODUCT_SERVICE_URL` et `ORDER_SERVICE_URL`.

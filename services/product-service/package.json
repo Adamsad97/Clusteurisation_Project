@@ -4,7 +4,9 @@
   "type": "module",
   "scripts": {
     "start": "node src/app.js",
-    "dev": "nodemon src/app.js",
+    "start:staging": "APP_ENV=staging NODE_ENV=production node src/app.js",
+    "start:production": "APP_ENV=production NODE_ENV=production node src/app.js",
+    "dev": "APP_ENV=development NODE_ENV=development nodemon src/app.js",
     "test": "cross-env NODE_ENV=test NODE_OPTIONS='--experimental-vm-modules' jest --detectOpenHandles --forceExit --coverage --reporters=default --reporters=jest-junit --runInBand --testTimeout=90000",
     "lint": "eslint . --ext .js --format json --output-file gl-code-quality-report.json"
   },
@@ -21,7 +23,7 @@
     "eslint": "^8.49.0",
     "jest": "^29.0.0",
     "jest-junit": "^16.0.0",
-    "mongodb-memory-server": "^6.9.6",
+    "mongodb-memory-server": "^9.5.0",
     "nodemon": "^3.0.0",
     "supertest": "^6.0.0"
   }

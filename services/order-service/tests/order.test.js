@@ -31,7 +31,7 @@ describe('Order Endpoints', () => {
 
   const mockToken = jwt.sign(
     { userId: testUser.userId, email: testUser.email },
-    process.env.JWT_SECRET || 'efrei_super_pass'
+    process.env.JWT_SECRET || 'test_jwt_secret'
   );
 
   beforeEach(async () => {
@@ -44,7 +44,7 @@ describe('Order Endpoints', () => {
   });
   describe('POST /api/orders', () => {
     it('should create a new order', async () => {
-      const productService = process.env.VITE_PRODUCT_SERVICE_URL || 'http://product-service:3000';
+      const productService = process.env.PRODUCT_SERVICE_URL || 'http://product-service:3000';
 
       // Réinitialiser et configurer le mock pour GET
       mockAxiosGet.mockReset();

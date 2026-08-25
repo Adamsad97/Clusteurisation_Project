@@ -8,14 +8,18 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+.npm
 dist
 dist-ssr
 *.local
 .vite
-#package-lock.json
 coverage/
 test-results/
 gl-code-quality-report.json
+
+.env
+.env.*
+!.env.example
 
 # Editor directories and files
 .vscode/*

@@ -1,0 +1,14 @@
+entryPoints:
+  web:
+    address: ":80"
+  websecure:
+    address: ":443"
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+    swarmMode: true
+    network: ecommerce_ecommerce_net
+  file:
+    filename: /etc/traefik/dynamic.yml

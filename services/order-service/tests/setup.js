@@ -3,14 +3,20 @@ import { MongoMemoryServer } from 'mongodb-memory-server';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 
-dotenv.config({ path: '.env.test' });
+dotenv.config({ path: 'tests/.env.test' });
 
 let mongod;
+const useExternalMongo = process.env.USE_EXTERNAL_MONGODB === 'true';
 
 beforeAll(async () => {
   // Déconnexion si déjà connecté
   if (mongoose.connection.readyState !== 0) {
     await mongoose.disconnect();
+  }
+
+  if (useExternalMongo) {
+    await mongoose.connect(process.env.MONGODB_URI);
+    return;
   }
 
   mongod = await MongoMemoryServer.create({
@@ -41,7 +47,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  if (!mongod || !mongod.isRunning) return;
+  if (mongoose.connection.readyState === 0) return;
   
   const collections = mongoose.connection.collections;
   for (const key in collections) {

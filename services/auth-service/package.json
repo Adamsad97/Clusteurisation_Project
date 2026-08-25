@@ -4,7 +4,9 @@
     "type": "module",
     "scripts": {
         "start": "node src/app.js",
-        "dev": "nodemon src/app.js",
+        "start:staging": "APP_ENV=staging NODE_ENV=production node src/app.js",
+        "start:production": "APP_ENV=production NODE_ENV=production node src/app.js",
+        "dev": "APP_ENV=development NODE_ENV=development nodemon src/app.js",
         "test": "NODE_ENV=test NODE_OPTIONS='--experimental-vm-modules' jest --detectOpenHandles --forceExit --coverage --testTimeout=90000"
     },
     "dependencies": {

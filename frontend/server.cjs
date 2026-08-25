@@ -1,102 +1,60 @@
-// frontend/server.cjs
-
 const express = require('express');
 const path = require('path');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 
 const app = express();
-app.use((req, res, next) => {
-  console.log(`[FRONTEND SERVER] Incoming request: ${req.method} ${req.url}`);
-  next();
+const distDir = path.join(__dirname, 'dist');
+
+const targets = {
+  auth: process.env.AUTH_SERVICE_URL || 'http://auth-service:3001',
+  product: process.env.PRODUCT_SERVICE_URL || 'http://product-service:3000',
+  order: process.env.ORDER_SERVICE_URL || 'http://order-service:3002',
+};
+
+function proxy(route, target, label) {
+  app.use(route, createProxyMiddleware({
+    target,
+    changeOrigin: true,
+    logLevel: 'warn',
+    pathRewrite: (_path, req) => req.originalUrl,
+    on: {
+      proxyReq: (_proxyReq, req) => {
+        console.log(`[proxy:${label}] ${req.method} ${req.originalUrl} -> ${target}`);
+      },
+      proxyRes: (proxyRes, req) => {
+        console.log(`[proxy:${label}] ${req.method} ${req.originalUrl} ${proxyRes.statusCode}`);
+      },
+      error: (err, req, res) => {
+        console.error(`[proxy:${label}] ${req.method} ${req.originalUrl}: ${err.message}`);
+        if (!res.headersSent) {
+          res.writeHead(502, { 'Content-Type': 'application/json' });
+        }
+        res.end(JSON.stringify({ message: `${label} service unavailable` }));
+      },
+    },
+  }));
+}
+
+proxy('/api/auth', targets.auth, 'auth');
+proxy('/api/products', targets.product, 'products');
+proxy('/api/cart', targets.product, 'cart');
+proxy('/api/orders', targets.order, 'orders');
+
+app.get('/health', (_req, res) => {
+  res.json({ status: 'OK', service: 'frontend' });
 });
-// 1. Servir les fichiers statiques du dossier 'dist'
-app.use(express.static(path.join(__dirname, 'dist')));
 
-// 2. Proxy des requêtes API vers les services backend
+app.use(express.static(distDir));
 
-// Proxy Auth Service
-app.use('/api/auth', createProxyMiddleware({
-  target: process.env.VITE_AUTH_SERVICE_URL || 'http://127.0.0.1:3001',
-  changeOrigin: true,
-  logLevel: 'debug',
-  pathRewrite: (path, req) => {
-    // Restaurer le chemin complet
-    return '/api/auth' + req.url;
-  },
-  onError: (err, req, res) => {
-    console.error(`[PROXY ERROR - Auth] ${err.message}`);
-    res.status(500).send('Proxy error (auth-service)');
-  },
-  onProxyReq: (proxyReq, req) => {
-    console.log(`[PROXY - Auth] Forwarding request: ${req.method} ${req.url}`);
-  },
-  onProxyRes: (proxyRes, req) => {
-    console.log(`[PROXY - Auth] Response status: ${proxyRes.statusCode}`);
-  },
-}));
-
-// Product Service
-app.use('/api/products', createProxyMiddleware({
-  target: process.env.VITE_PRODUCT_SERVICE_URL || 'http://127.0.0.1:3000',
-  changeOrigin: true,
-  logLevel: 'debug',
-  onProxyReq: (proxyReq, req) => {
-    console.log(`[PROXY] Forwarding request to product-service: ${req.method} ${req.url}`);
-  },
-  onProxyRes: (proxyRes, req) => {
-    console.log(`[PROXY] Response from product-service: ${proxyRes.statusCode}`);
-  },
-  pathRewrite: (path, req) => {
-    // Restaurer le chemin complet
-    return '/api/products' + req.url;
-  },
-}));
-
-// Order Service
-app.use('/api/orders', createProxyMiddleware({
-  target: process.env.VITE_ORDER_SERVICE_URL || 'http://127.0.0.1:3002',
-  changeOrigin: true,
-  logLevel: 'debug',
-  onProxyReq: (proxyReq, req) => {
-    console.log(`[PROXY] Forwarding request to order-service: ${req.method} ${req.url}`);
-  },
-  onProxyRes: (proxyRes, req) => {
-    console.log(`[PROXY] Response from order-service: ${proxyRes.statusCode}`);
-  },
-  pathRewrite: (path, req) => {
-    // Restaurer le chemin complet
-    return '/api/orders' + req.url;
-  },
-}));
-
-// Cart Service
-app.use('/api/cart', createProxyMiddleware({
-  target: process.env.VITE_PRODUCT_SERVICE_URL || 'http://127.0.0.1:3000',
-  changeOrigin: true,
-  logLevel: 'debug',
-  onProxyReq: (proxyReq, req) => {
-    console.log(`[PROXY] Forwarding request to cart-service: ${req.method} ${req.url}`);
-  },
-  onProxyRes: (proxyRes, req) => {
-    console.log(`[PROXY] Response from cart-service: ${proxyRes.statusCode}`);
-  },
-  pathRewrite: (path, req) => {
-    // Restaurer le chemin complet
-    return '/api/cart' + req.url;
-  },
-}));
-
-// 3. Pour les routes non gérées, renvoyer index.html (SPA)
 app.get('*', (req, res) => {
-  if (req.originalUrl.startsWith('/api/') || req.originalUrl.includes('.')) {
-    res.status(404).send('Not Found');
-  } else {
-    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+  if (req.originalUrl.startsWith('/api/') || path.extname(req.path)) {
+    return res.status(404).send('Not Found');
   }
+  return res.sendFile(path.join(distDir, 'index.html'));
 });
 
-// 4. Démarrer le serveur
-const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => {
-  console.log(`Frontend server is running on port ${PORT}`);
+const port = process.env.PORT || 8080;
+app.listen(port, () => {
+  console.log(`Frontend server listening on port ${port}`);
+  console.log(`Proxy targets: auth=${targets.auth}, products=${targets.product}, orders=${targets.order}`);
 });

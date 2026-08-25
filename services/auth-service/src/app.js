@@ -1,50 +1,80 @@
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
+import mongoose from 'mongoose';
+import crypto from 'crypto';
 import { connectDB } from './config/database.js';
 import authRoutes from './routes/authRoutes.js';
-
-dotenv.config();
+import { runtimeConfig } from './config/runtime.js';
 
 const app = express();
-const port = process.env.PORT || 3001;
 
 // Ne pas connecter MongoDB si en mode test
-if (process.env.NODE_ENV !== 'test') {
+if (!runtimeConfig.isTest) {
   connectDB();
 }
 
 app.use(cors({
-  origin: 'http://localhost:8080', // Remplacez par l'URL exacte du frontend
+  origin: runtimeConfig.corsOrigin === '*' ? true : runtimeConfig.corsOrigin.split(',').map(origin => origin.trim()),
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id'],
 }));
 app.use(express.json());
 
-app.use('/api/auth', authRoutes);
-// Middleware pour le logging des requêtes
 app.use((req, res, next) => {
-  console.log(`Requête reçue sur le chemin : ${req.method} ${req.originalUrl}`);
+  const requestId = req.get('X-Request-Id') || crypto.randomUUID();
+  res.setHeader('X-Request-Id', requestId);
+  if (!runtimeConfig.isTest) {
+    console.log(`[${runtimeConfig.serviceName}] ${requestId} ${req.method} ${req.originalUrl}`);
+  }
   next();
 });
-// Routes
-app.post('/api/auth/register', (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) {
-    return res.status(400).json({ message: 'Invalid request data' });
-  }
-  res.json({ message: 'Utilisateur créé avec succès', token: 'dummy-token' });
+
+app.use('/api/auth', authRoutes);
+
+const getHealthPayload = () => {
+  const states = ['disconnected', 'connected', 'connecting', 'disconnecting'];
+  const mongodb = states[mongoose.connection.readyState] || 'unknown';
+  const ready = runtimeConfig.isTest || mongoose.connection.readyState === 1;
+
+  return {
+    status: 'OK',
+    service: runtimeConfig.serviceName,
+    environment: runtimeConfig.appEnv,
+    mongodb,
+    ready,
+    uptime: Math.round(process.uptime()),
+  };
+};
+
+app.get('/api/health', (_req, res) => {
+  res.json(getHealthPayload());
 });
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', service: 'auth-service' });
+
+app.get('/api/ready', (_req, res) => {
+  const payload = getHealthPayload();
+
+  res.status(payload.ready ? 200 : 503).json({
+    ...payload,
+    status: payload.ready ? 'OK' : 'DEGRADED',
+  });
 });
 app.get('/api/auth/ping', (req, res) => {
   res.json({ message: 'Auth service is reachable' });
 });
-if (process.env.NODE_ENV !== 'test') {
-  app.listen(port, () => {
-    console.log(`Auth service running on port ${port}`);
+
+if (!runtimeConfig.isTest) {
+  const server = app.listen(runtimeConfig.port, () => {
+    console.log(`Auth service running on port ${runtimeConfig.port} (${runtimeConfig.appEnv})`);
   });
+
+  const shutdown = async (signal) => {
+    console.log(`${signal} received, shutting down auth-service`);
+    await mongoose.disconnect();
+    server.close(() => process.exit(0));
+  };
+
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
 }
 
 export default app;

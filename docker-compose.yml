@@ -1,25 +1,33 @@
 version: '3.8'
-
 services:
-  frontend:
-    build:
-      context: ./frontend
-      target: development
-      args:
-        VITE_PRODUCT_SERVICE_URL: http://product-service:3000
-        VITE_AUTH_SERVICE_URL: http://auth-service:3001
-        VITE_ORDER_SERVICE_URL: http://order-service:3002
+  mongodb:
+    image: mongo:4.4
     ports:
-      - "8080:8080"
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+  auth-service:
+    build: ./services/auth-service
+    ports:
+      - "3001:3001"
     environment:
       - NODE_ENV=development
-      - VITE_PRODUCT_SERVICE_URL=http://product-service:3000
-      - VITE_AUTH_SERVICE_URL=http://auth-service:3001
-      - VITE_ORDER_SERVICE_URL=http://order-service:3002
+      - MONGODB_URI=mongodb://mongodb:27017/auth
+      - JWT_SECRET=project_cluster_esgi_iwj
     depends_on:
-      - product-service
-      - auth-service
-      - order-service
+      - mongodb
+
+  product-service:
+    build: ./services/product-service
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - MONGODB_URI=mongodb://mongodb:27017/products
+      - JWT_SECRET=project_cluster_esgi_iwj
+    depends_on:
+      - mongodb
 
   order-service:
     build: ./services/order-service
@@ -28,42 +36,27 @@ services:
     environment:
       - NODE_ENV=development
       - MONGODB_URI=mongodb://mongodb:27017/orders
-      - JWT_SECRET=efrei_super_pass
-      - VITE_PRODUCT_SERVICE_URL=http://product-service:3000
+      - JWT_SECRET=project_cluster_esgi_iwj
+      - PRODUCT_SERVICE_URL=http://product-service:3000
     depends_on:
       - mongodb
       - product-service
 
-  product-service:
-    build: ./services/product-service
-    container_name: product-service
+  frontend:
+    build:
+      context: ./frontend
+      target: development
     ports:
-      - "3000:3000"
-    environment:
-      - MONGODB_URI=mongodb://mongodb:27017/ecommerce
-      - NODE_ENV=development
-      - JWT_SECRET=efrei_super_pass
-    depends_on:
-      - mongodb
-  auth-service:
-    build: ./services/auth-service
-    ports:
-      - "3001:3001"
+      - "8080:8080"
     environment:
       - NODE_ENV=development
-      - MONGODB_URI=mongodb://mongodb:27017/auth
-      - JWT_SECRET=efrei_super_pass
+      - PRODUCT_SERVICE_URL=http://product-service:3000
+      - AUTH_SERVICE_URL=http://auth-service:3001
+      - ORDER_SERVICE_URL=http://order-service:3002
     depends_on:
-      - mongodb
-
-  mongodb:
-    image: mongo:4.4
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongodb_data:/data/db
-    environment:
-      - MONGO_INITDB_DATABASE=ecommerce
+      - product-service
+      - auth-service
+      - order-service
 
 volumes:
   mongodb_data:

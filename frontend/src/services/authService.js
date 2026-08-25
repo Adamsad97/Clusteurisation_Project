@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_AUTH_SERVICE_URL || '/api/auth';
+const API_BASE_URL = '/api/auth';
 
 const authService = axios.create({
   baseURL: API_BASE_URL,
@@ -13,8 +13,6 @@ authService.interceptors.request.use((config) => {
   }
   return config;
 });
-
-console.log("Base URL for Auth Service:", API_BASE_URL);
 
 export function register(data) {
   return authService.post('/register', data);

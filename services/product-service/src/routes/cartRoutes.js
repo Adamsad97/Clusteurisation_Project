@@ -8,6 +8,10 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const userId = req.headers.userid; // Envoyé depuis le frontend
+    if (!userId) {
+      return res.status(400).json({ message: 'userId requis' });
+    }
+
     let cart = await Cart.findOne({ userId }).populate('items.productId');
     
     if (!cart) {
@@ -24,7 +28,22 @@ router.get('/', async (req, res) => {
 // Ajouter un produit au panier
 router.post('/add', async (req, res) => {
   try {
-    const { userId, productId } = req.body;
+    const { userId, productId, quantity = 1 } = req.body;
+    const parsedQuantity = Number(quantity);
+
+    if (!userId || !productId) {
+      return res.status(400).json({ message: 'userId et productId requis' });
+    }
+
+    if (!Number.isInteger(parsedQuantity) || parsedQuantity < 1) {
+      return res.status(400).json({ message: 'Quantité invalide' });
+    }
+
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({ message: 'Produit non trouvé' });
+    }
+
     let cart = await Cart.findOne({ userId });
     
     if (!cart) {
@@ -36,9 +55,9 @@ router.post('/add', async (req, res) => {
     );
 
     if (existingItem) {
-      existingItem.quantity += 1;
+      existingItem.quantity += parsedQuantity;
     } else {
-      cart.items.push({ productId, quantity: 1 });
+      cart.items.push({ productId, quantity: parsedQuantity });
     }
 
     await cart.save();
@@ -55,6 +74,9 @@ router.delete('/remove/:productId', async (req, res) => {
   try {
     const userId = req.headers.userid;
     const productId = req.params.productId;
+    if (!userId) {
+      return res.status(400).json({ message: 'userId requis' });
+    }
     
     const cart = await Cart.findOne({ userId });
     if (!cart) {

@@ -1,0 +1,89 @@
+version: '3.8'
+services:
+  mongodb:
+    image: mongo:4.4
+    volumes:
+      - mongodb_data:/data/db
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+    networks:
+      - ecommerce_net
+
+  auth-service:
+    image: 192.168.102.114:5000/auth-service:latest
+    deploy:
+      replicas: 2
+      placement:
+        constraints:
+          - node.role == worker
+    environment:
+      NODE_ENV: production
+      MONGODB_URI: mongodb://mongodb:27017/auth
+    secrets:
+      - jwt_secret
+    networks:
+      - ecommerce_net
+
+  product-service:
+    image: 192.168.102.114:5000/product-service:latest
+    deploy:
+      replicas: 2
+      placement:
+        constraints:
+          - node.role == worker
+    environment:
+      NODE_ENV: production
+      MONGODB_URI: mongodb://mongodb:27017/products
+    networks:
+      - ecommerce_net
+
+  order-service:
+    image: 192.168.102.114:5000/order-service:latest
+    deploy:
+      replicas: 2
+      placement:
+        constraints:
+          - node.role == worker
+    environment:
+      NODE_ENV: production
+      MONGODB_URI: mongodb://mongodb:27017/orders
+      PRODUCT_SERVICE_URL: http://product-service:3000
+    secrets:
+      - jwt_secret
+    networks:
+      - ecommerce_net
+
+  frontend:
+    image: 192.168.102.114:5000/frontend:latest
+    deploy:
+      replicas: 3
+      placement:
+        constraints:
+          - node.role == worker
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.frontend.rule=Host(`app.local`)"
+        - "traefik.http.routers.frontend.entrypoints=websecure"
+        - "traefik.http.routers.frontend.tls=true"
+        - "traefik.http.services.frontend.loadbalancer.server.port=8080"
+    environment:
+      NODE_ENV: production
+      AUTH_SERVICE_URL: http://auth-service:3001
+      PRODUCT_SERVICE_URL: http://product-service:3000
+      ORDER_SERVICE_URL: http://order-service:3002
+    networks:
+      - ecommerce_net
+
+volumes:
+  mongodb_data:
+    driver: local
+
+networks:
+  ecommerce_net:
+    driver: overlay
+
+secrets:
+  jwt_secret:
+    external: true

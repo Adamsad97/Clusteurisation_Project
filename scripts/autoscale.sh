@@ -1,17 +1,20 @@
 #!/bin/bash
-# Script de scalabilité automatique pour Docker Swarm
-# Surveille la charge CPU moyenne d'un service et ajuste ses replicas en consequence
+# Script de scalabilite automatique pour Docker Swarm
+# A executer sur le noeud MANAGER uniquement.
+# Mesure le temps de reponse HTTP du frontend et ajuste les replicas en consequence.
 
 SERVICE_NAME="${1:-ecommerce_frontend}"
 MIN_REPLICAS="${2:-3}"
 MAX_REPLICAS="${3:-6}"
-CPU_SCALE_UP_THRESHOLD=70    # % CPU moyen au-dessus duquel on augmente les replicas
-CPU_SCALE_DOWN_THRESHOLD=20  # % CPU moyen en dessous duquel on reduit les replicas
-CHECK_INTERVAL=30            # secondes entre chaque verification
+URL="${4:-https://localhost/api/products}"
+RESPONSE_TIME_HIGH=1.0   # secondes : au-dessus, on considere le service charge
+RESPONSE_TIME_LOW=0.2    # secondes : en dessous, on considere le service peu charge
+CHECK_INTERVAL=15
 
 echo "=== Autoscaling demarre pour $SERVICE_NAME ==="
 echo "Replicas min: $MIN_REPLICAS | max: $MAX_REPLICAS"
-echo "Seuils CPU: scale-up > ${CPU_SCALE_UP_THRESHOLD}%, scale-down < ${CPU_SCALE_DOWN_THRESHOLD}%"
+echo "URL surveillee: $URL"
+echo "Seuils temps de reponse: scale-up > ${RESPONSE_TIME_HIGH}s, scale-down < ${RESPONSE_TIME_LOW}s"
 echo ""
 
 while true; do
@@ -23,39 +26,20 @@ while true; do
     continue
   fi
 
-  CONTAINER_IDS=$(docker ps -q --filter "name=${SERVICE_NAME}\." )
+  RESPONSE_TIME=$(curl -k -s -o /dev/null -w "%{time_total}" -H "Host: app.local" "$URL")
 
-  if [ -z "$CONTAINER_IDS" ]; then
-    echo "$(date '+%H:%M:%S') Aucun conteneur actif trouve localement pour $SERVICE_NAME (peut-etre sur un autre noeud)."
-    sleep "$CHECK_INTERVAL"
-    continue
-  fi
+  echo "$(date '+%H:%M:%S') Replicas actuels: $CURRENT_REPLICAS | Temps de reponse: ${RESPONSE_TIME}s"
 
-  TOTAL_CPU=0
-  COUNT=0
-  for cid in $CONTAINER_IDS; do
-    CPU=$(docker stats --no-stream --format "{{.CPUPerc}}" "$cid" | tr -d '%')
-    TOTAL_CPU=$(echo "$TOTAL_CPU + $CPU" | bc)
-    COUNT=$((COUNT + 1))
-  done
+  IS_HIGH=$(echo "$RESPONSE_TIME > $RESPONSE_TIME_HIGH" | bc)
+  IS_LOW=$(echo "$RESPONSE_TIME < $RESPONSE_TIME_LOW" | bc)
 
-  if [ "$COUNT" -eq 0 ]; then
-    sleep "$CHECK_INTERVAL"
-    continue
-  fi
-
-  AVG_CPU=$(echo "scale=2; $TOTAL_CPU / $COUNT" | bc)
-  echo "$(date '+%H:%M:%S') Replicas actuels: $CURRENT_REPLICAS | CPU moyen (noeud local): ${AVG_CPU}%"
-
-  AVG_CPU_INT=$(echo "$AVG_CPU / 1" | bc)
-
-  if [ "$AVG_CPU_INT" -gt "$CPU_SCALE_UP_THRESHOLD" ] && [ "$CURRENT_REPLICAS" -lt "$MAX_REPLICAS" ]; then
+  if [ "$IS_HIGH" -eq 1 ] && [ "$CURRENT_REPLICAS" -lt "$MAX_REPLICAS" ]; then
     NEW_REPLICAS=$((CURRENT_REPLICAS + 1))
-    echo "$(date '+%H:%M:%S') CPU eleve -> scale up : $CURRENT_REPLICAS -> $NEW_REPLICAS"
+    echo "$(date '+%H:%M:%S') Temps de reponse eleve -> scale up : $CURRENT_REPLICAS -> $NEW_REPLICAS"
     docker service scale "$SERVICE_NAME=$NEW_REPLICAS"
-  elif [ "$AVG_CPU_INT" -lt "$CPU_SCALE_DOWN_THRESHOLD" ] && [ "$CURRENT_REPLICAS" -gt "$MIN_REPLICAS" ]; then
+  elif [ "$IS_LOW" -eq 1 ] && [ "$CURRENT_REPLICAS" -gt "$MIN_REPLICAS" ]; then
     NEW_REPLICAS=$((CURRENT_REPLICAS - 1))
-    echo "$(date '+%H:%M:%S') CPU faible -> scale down : $CURRENT_REPLICAS -> $NEW_REPLICAS"
+    echo "$(date '+%H:%M:%S') Temps de reponse faible -> scale down : $CURRENT_REPLICAS -> $NEW_REPLICAS"
     docker service scale "$SERVICE_NAME=$NEW_REPLICAS"
   fi
 

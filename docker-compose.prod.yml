@@ -31,6 +31,15 @@ services:
         reservations:
           cpus: '0.25'
           memory: 128M
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        monitor: 15s
+        max_failure_ratio: 0.3
+      rollback_config:
+        parallelism: 1
+        delay: 5s
     environment:
       NODE_ENV: production
       MONGODB_URI: mongodb://mongodb:27017/auth
@@ -52,6 +61,15 @@ services:
         reservations:
           cpus: '0.25'
           memory: 128M
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        monitor: 15s
+        max_failure_ratio: 0.3
+      rollback_config:
+        parallelism: 1
+        delay: 5s
     environment:
       NODE_ENV: production
       MONGODB_URI: mongodb://mongodb:27017/products
@@ -71,6 +89,15 @@ services:
         reservations:
           cpus: '0.25'
           memory: 128M
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        monitor: 15s
+        max_failure_ratio: 0.3
+      rollback_config:
+        parallelism: 1
+        delay: 5s
     environment:
       NODE_ENV: production
       MONGODB_URI: mongodb://mongodb:27017/orders
@@ -93,6 +120,15 @@ services:
         reservations:
           cpus: '0.25'
           memory: 128M
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        monitor: 15s
+        max_failure_ratio: 0.3
+      rollback_config:
+        parallelism: 1
+        delay: 5s
       labels:
         - "traefik.enable=true"
         - "traefik.http.routers.frontend.rule=Host(`app.local`)"
